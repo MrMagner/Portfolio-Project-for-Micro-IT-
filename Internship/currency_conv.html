@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Premium Currency Converter</title>
+  <style>
+    :root {
+      --dark-bg: linear-gradient(135deg, #000000, #1a1a1a);
+      --light-bg: linear-gradient(135deg, #f0f0f0, #ffffff);
+      --glass-dark: rgba(255, 255, 255, 0.06);
+      --glass-light: rgba(0, 0, 0, 0.06);
+      --accent: #00ff88;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: var(--dark-bg);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      transition: all 0.4s ease;
+    }
+
+    .light-mode {
+      background: var(--light-bg);
+      color: #111;
+    }
+
+    .container {
+      background: var(--glass-dark);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+      padding: 40px 30px;
+      width: 90%;
+      max-width: 480px;
+      box-shadow: 0 0 30px rgba(0,0,0,0.2);
+      transition: all 0.4s ease;
+    }
+
+    .light-mode .container {
+      background: var(--glass-light);
+      box-shadow: 0 0 30px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 24px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    select, input {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border: none;
+      border-radius: 10px;
+      background: #222;
+      color: white;
+    }
+
+    .light-mode select,
+    .light-mode input {
+      background: #eee;
+      color: #000;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background-color: var(--accent);
+      color: #000;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #00cc6a;
+    }
+
+    .result {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .theme-toggle {
+      margin-top: 25px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: bold;
+      color: var(--accent);
+      transition: transform 0.3s;
+    }
+
+    .theme-toggle:hover {
+      transform: scale(1.05);
+    }
+
+    .flag-option {
+      background-repeat: no-repeat;
+      background-position: 5px center;
+      background-size: 20px;
+      padding-left: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Currency Converter</h1>
+
+    <div class="input-group">
+      <label for="from">From</label>
+      <select id="from"></select>
+    </div>
+
+    <div class="input-group">
+      <label for="to">To</label>
+      <select id="to"></select>
+    </div>
+
+    <div class="input-group">
+      <label for="amount">Amount</label>
+      <input type="number" id="amount" placeholder="Enter amount" />
+    </div>
+
+    <button onclick="convert()">Convert</button>
+    <div class="result" id="result">Result will appear here</div>
+
+    <div class="theme-toggle" onclick="toggleTheme()">🌓 Toggle Theme</div>
+  </div>
+
+  <script>
+    const currencyList = {
+      USD: "us",
+      EUR: "eu",
+      INR: "in",
+      GBP: "gb",
+      JPY: "jp",
+      CAD: "ca",
+      AUD: "au",
+      CNY: "cn",
+      CHF: "ch",
+      SGD: "sg"
+    };
+
+    const staticRates = {
+      USD: 1,
+      EUR: 0.92,
+      INR: 83.0,
+      GBP: 0.79,
+      JPY: 155.5,
+      CAD: 1.36,
+      AUD: 1.52,
+      CNY: 7.24,
+      CHF: 0.91,
+      SGD: 1.35
+    };
+
+    const fromSelect = document.getElementById("from");
+    const toSelect = document.getElementById("to");
+    const resultBox = document.getElementById("result");
+
+    function populateCurrencies() {
+      Object.entries(currencyList).forEach(([code, country]) => {
+        const flagUrl = `https://flagcdn.com/w40/${country}.png`;
+        const opt1 = document.createElement("option");
+        const opt2 = document.createElement("option");
+
+        opt1.value = opt2.value = code;
+        opt1.text = opt2.text = `${code}`;
+        opt1.style.backgroundImage = opt2.style.backgroundImage = `url(${flagUrl})`;
+        opt1.className = opt2.className = "flag-option";
+
+        fromSelect.appendChild(opt1);
+        toSelect.appendChild(opt2);
+      });
+
+      fromSelect.value = "USD";
+      toSelect.value = "INR";
+    }
+
+    async function convert() {
+      const from = fromSelect.value;
+      const to = toSelect.value;
+      const amount = parseFloat(document.getElementById("amount").value);
+
+      if (isNaN(amount) || amount <= 0) {
+        resultBox.textContent = "Please enter a valid amount.";
+        return;
+      }
+
+      try {
+        const res = await fetch(`https://api.exchangerate.host/convert?from=${from}&to=${to}&amount=${amount}`);
+        const data = await res.json();
+        if (data.result) {
+          resultBox.textContent = `${amount} ${from} = ${data.result.toFixed(2)} ${to}`;
+        } else {
+          fallbackConvert(from, to, amount);
+        }
+      } catch {
+        fallbackConvert(from, to, amount);
+      }
+    }
+
+    function fallbackConvert(from, to, amount) {
+      if (!staticRates[from] || !staticRates[to]) {
+        resultBox.textContent = "Conversion not supported offline.";
+        return;
+      }
+      const usd = amount / staticRates[from];
+      const converted = usd * staticRates[to];
+      resultBox.textContent = `${amount} ${from} ≈ ${converted.toFixed(2)} ${to}`;
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("light-mode");
+    }
+
+    populateCurrencies();
+  </script>
+</body>
+</html>
